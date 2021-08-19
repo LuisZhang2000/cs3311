@@ -1,0 +1,148 @@
+#!/usr/bin/python3
+# COMP3311 20T3 Ass3 ... print info about cast and crew for Movie
+
+import sys
+import psycopg2
+#from helpers import whatever, functions, you, need
+
+# define any local helper functions here
+
+# set up some globals
+
+usage = "Usage: minfo 'MovieTitlePattern' [Year]"
+db = None
+
+# process command-line args
+
+argc = len(sys.argv)
+
+# manipulate database
+
+if argc < 2 or argc > 3:
+  print(usage)
+  exit(1)
+
+title = sys.argv[1]
+if argc == 3:
+  try:
+    val = int(sys.argv[2])
+  except ValueError:
+    print(usage)
+    exit(1)
+
+movie_query1 = """
+select title, start_year
+from Movies 
+where title ~* %s
+order by start_year, title
+"""
+
+movie_query2 = """
+select title, start_year
+from Movies 
+where title ~* %s and start_year = %s
+order by start_year, title
+"""
+
+actor_query1 = """
+select n.name, a.played
+from Names n
+  join Acting_roles a on (a.name_id = n.id)
+  join Movies m on (m.id = a.movie_id)
+  join Principals p on (p.movie_id = m.id and p.name_id = n.id)
+where m.title ~* %s
+order by p.ordering, a.played
+"""
+
+actor_query2 = """
+select n.name, a.played
+from Names n
+  join Acting_roles a on (a.name_id = n.id)
+  join Movies m on (m.id = a.movie_id)
+  join Principals p on (p.movie_id = m.id and p.name_id = n.id)
+where m.title ~* %s and m.start_year = %s
+order by p.ordering, a.played
+"""
+
+crew_query1 = """
+select n.name, c.role
+from Names n
+  join Crew_roles c on (c.name_id = n.id)
+  join Movies m on (m.id = c.movie_id)
+  join Principals p on (p.movie_id = m.id and p.name_id = n.id)
+where m.title ~* %s 
+order by p.ordering, c.role
+"""
+
+crew_query2 = """
+select n.name, c.role
+from Names n
+  join Crew_roles c on (c.name_id = n.id)
+  join Movies m on (m.id = c.movie_id)
+  join Principals p on (p.movie_id = m.id and p.name_id = n.id)
+where m.title ~* %s and m.start_year = %s
+order by p.ordering, c.role
+"""
+
+try:
+  db = psycopg2.connect("dbname=imdb")
+  cur = db.cursor()
+  if argc == 2:
+    cur.execute(movie_query1, [title])
+  if argc == 3:
+    year = sys.argv[2]
+    cur.execute(movie_query2, [title, year])
+  movies = cur.fetchall()
+
+  if len(movies) == 0:
+    if argc == 2:
+      print(f"No movie matching '{title}'")
+    else:
+      print(f"No movie matching '{title}' {year}")
+    exit(0)
+
+  # if the partial name matches exactly one movie
+  # print the movie details (title and year)
+  if len(movies) == 1:
+    for mov in movies:
+      print(f"{mov[0]} ({mov[1]})")
+      print("===============")
+      print("Starring")
+      if argc == 2:
+        cur.execute(actor_query1, [title])
+        actors = cur.fetchall()
+        cur.execute(crew_query1, [title])
+        crew = cur.fetchall()
+      else:
+        cur.execute(actor_query2, [title, year])
+        actors = cur.fetchall()
+        cur.execute(crew_query2, [title, year])
+        crew = cur.fetchall()
+      # print list of the principal actors and their roles 
+      for act in actors:
+        print(f" {act[0]} as {act[1]}")
+      print("and with")
+      # print list of the principal crew members and their roles
+      for c in crew:
+        print(f" {c[0]}: {c[1].capitalize()}")
+  else: 
+    if argc == 2:
+      print(f"Movies matching '{title}'")
+    else: 
+      print(f"Movies matching '{title}' {year}")
+    print("===============")
+    for mov in movies:
+      print(f"{mov[0]} ({mov[1]})")
+
+except psycopg2.Error as err:
+  print("DB error: ", err)
+finally:
+  if db:
+    db.close()
+
+"""
+select title, start_year
+from Movies 
+where title ~* 'The Ring' and start_year = '2002'
+order by start_year, title
+"""

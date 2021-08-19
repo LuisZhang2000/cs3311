@@ -1,0 +1,124 @@
+#!/usr/bin/python3
+# COMP3311 20T3 Ass3 ... get Name's biography/filmography
+
+import sys
+import psycopg2
+#from helpers import whatever, functions, you, need
+
+# define any local helper functions here
+
+# set up some globals
+
+usage = "Usage: bio 'NamePattern' [Year]"
+db = None
+
+# process command-line args
+
+argc = len(sys.argv)
+
+# manipulate database
+
+if argc != 2:
+  print(usage)
+  exit(0)
+
+name = sys.argv[1]
+query = """
+select n.name, n.birth_year, n.death_year
+from Names n
+where name ~* %s
+order by n.name, n.id
+"""
+query2 = """
+select title, start_year, played from
+  (select m.title, m.start_year, a.played
+  from Principals p
+    join Names n on (n.id = p.name_id)
+    join Movies m on (m.id = p.movie_id)
+    join Acting_roles a on (a.name_id = n.id and a.movie_id = m.id)
+  where n.name ~* 'spike lee') as data
+  union
+  (select m.title, m.start_year, c.role
+  from Principals p
+    join Names n on (n.id = p.name_id)
+    join Movies m on (m.id = p.movie_id)
+    join Crew_roles c on (c.name_id = n.id and c.movie_id = m.id)
+    where n.name ~* 'spike lee')
+order by start_year, title
+"""
+
+try:
+  db = psycopg2.connect("dbname=imdb")
+  cur = db.cursor()
+  cur.execute(query, [name])
+  names = cur.fetchall()
+
+  if len(names) == 0:
+    if argc == 2:
+      print(f"No name matching '{name}'")
+    # else:
+    #   print(f"No movie matching '{name}' {year}")
+    exit(0)
+
+  if len(names) == 1:
+    for n in names:
+      if n[1] == None and n[2] == None:
+        print(f"Filmography for {n[0]} (???)")
+      elif n[2] == None:
+        print(f"Filmography for {n[0]} ({n[1]}-)")
+      elif n[1] == None:
+        print(f"Filmography for {n[0]} (?-{n[2]})")
+      else:
+        print(f"Filmography for {n[0]} ({n[1]}-{n[2]})")
+      print("===============")
+
+      cur.execute(query2, [name, name])
+      movies = cur.fetchall()
+      for mov in movies:
+        print(f"{mov[0]} ({mov[1]})")
+        if mov[2].islower():
+          print(f" as {mov[2].capitalize()}")
+        else:
+          print(f" playing {mov[2]}")
+
+  else: 
+    if argc == 2:
+      print(f"Names matching '{name}'")
+      print("===============")
+    # else: 
+    #   print(f"Movies matching '{title}' {year}")
+    for n in names:
+      if n[1] == None and n[2] == None:
+        print(f"{n[0]} (???)")
+      elif n[2] == None:
+        print(f"{n[0]} ({n[1]}-)")
+      elif n[1] == None:
+        print(f"{n[0]} (?-{n[2]})")
+      else:
+        print(f"{n[0]} ({n[1]}-{n[2]})")
+except psycopg2.Error as err:
+  print("DB error: ", err)
+finally:
+  if db:
+    db.close()
+
+
+"""
+select title, start_year, played, role from
+  (select m.title, m.start_year, a.played, c.role
+  from Principals p
+    join Names n on (n.id = p.name_id)
+    join Movies m on (m.id = p.movie_id)
+    full outer join Acting_roles a on (a.name_id = n.id and a.movie_id = m.id)
+    full outer join Crew_roles c on (c.name_id = n.id and c.movie_id = m.id)
+  where n.name ~* 'spike lee') as data
+  union
+  (select m.title, m.start_year, a.played, c.role
+  from Principals p
+    join Names n on (n.id = p.name_id)
+    join Movies m on (m.id = p.movie_id)
+    full outer join Acting_roles a on (a.name_id = n.id and a.movie_id = m.id)
+    full outer join Crew_roles c on (c.name_id = n.id and c.movie_id = m.id)
+    where n.name ~* 'spike lee')
+order by start_year
+"""

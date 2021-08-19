@@ -1,0 +1,86 @@
+#!/usr/bin/python3
+# COMP3311 20T3 Ass3 ... print info about different releases for Movie
+
+import sys
+import psycopg2
+#from helpers import whatever, functions, you, need
+
+# define any local helper functions here
+
+# set up some globals
+
+usage = "Usage: rels 'PartialMovieTitle'"
+db = None
+
+# process command-line args
+
+argc = len(sys.argv)
+
+# manipulate database
+
+if argc < 2:
+  print(usage)
+  exit(1)
+
+title = sys.argv[1]
+query1 = """
+select title, start_year
+from Movies 
+where title ~* %s
+order by start_year, title
+"""
+query2 = """
+select a.local_title, a.region, a.language
+from Movies m 
+  join Aliases a on (a.movie_id = m.id)
+where m.title like %s
+order by ordering
+"""
+
+try:
+  db = psycopg2.connect("dbname=imdb")
+  cur = db.cursor()
+  cur.execute(query1, [title])
+  movies = cur.fetchall()
+
+  if len(movies) == 0:
+    print(f"No movie matching '{title}'")
+    exit(0)
+
+  # if the partial name matches exactly one movie
+  # print the movie's title and year
+  # print a list of all of the other releases (aliases) of the movie
+  if len(movies) == 1:
+    for mov in movies:
+      cur.execute(query2, ['%' + title + '%'])
+      aliases = cur.fetchall()
+
+      # If there are no aliases, print "Title (Year) has no alternative releases"
+      if len(aliases) == 0:
+        print(f"{mov[0]} ({mov[1]}) has no alternative releases")
+      else:
+        print(f"{mov[0]} ({mov[1]}) was also released as")
+        for ali in aliases:
+          region = " ".join(ali[1].split())
+          # if a language is specified, print it as well
+          if ali[2] != None:
+            lang = " ".join(ali[2].split())
+            print(f"'{ali[0]}' (region: {region}, language: {lang})")
+          # if no language specified, just print region
+          else:
+            print(f"'{ali[0]}' (region: {region})")
+
+  # if the partial name matches multiple movies
+  # print out all the matching movies
+  else: 
+    print(f"Movies matching '{title}'")
+    print("===============")
+    for mov in movies:
+      print(f"{mov[0]} ({mov[1]})")
+      
+except psycopg2.Error as err:
+  print("DB error: ", err)
+finally:
+  if db:
+    db.close()
+
