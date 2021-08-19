@@ -1,0 +1,17 @@
+WEEK 4 SQL CONSTRAINTS, UPDATES AND QUERIES
+
+1. Order of table declarations does matter. Anything that refers to something else needs to be after whatever it refers to.
+
+2. 
+update Employees
+set salary = 0.8 * salary
+where age < 25
+
+3.
+update Employees
+set salary = 1.1 * salary
+where e.eid in
+    (select e.eid
+    from Employees e join WorksIn w on (e.eid = w.eid )
+        join Departments d on (w.did = d.did)
+    where d.dname = "Sales")

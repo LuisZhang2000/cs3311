@@ -1,0 +1,50 @@
+WEEK 3 ER -> Rel Mapping, SQL DDL, ER -> SQL Mapping
+
+11. Relational diagram:
+Car: rego (PK), model, year
+Person: license (PK), name, address
+Accident: report (PK), location, date
+Ownership: carRego(FK), ownerLicense(FK)
+Involvement: license(FK), carRego(FK), report(FK), damage
+
+
+create table Cars (
+    rego    char(6),
+    model   varchar(20),
+    year    integer,
+    primary key (rego)
+);
+
+create table Persons (
+    license     char(9),
+    name        varchar(30), -- ideally split name into firstName and lastName
+    address     varchar(50),
+    primary key (license)
+);
+
+create table Accidents (
+    report      integer,
+    location    varchar(50),
+    date        date,
+    primary key (report)
+);
+
+create table Ownership (
+    carRego         char(6),
+    ownerLicense    char(9),
+    primary key (carRego, ownerLicense),
+    foreign key carRego references Cars(rego),
+    foreign key ownerLicense references Persons(license)
+);
+
+create table Involvement (
+    carRego         char(6),
+    ownerLicense    char(9),
+    report          integer
+    damage          float
+    primary key (carRego, ownerLicense, report),
+    foreign key carRego references Cars(rego),
+    foreign key ownerLicense references Persons(license),
+    foreign key report references Accidents(report)
+);
+
