@@ -1,0 +1,84 @@
+#!/usr/bin/python3
+# COMP3311 20T2 Final Exam
+# Q6: print match reports for a specified team in a given year
+
+import sys
+import psycopg2
+
+# ... put helper functions here ...
+
+def getResult(g1,g2):
+   if g1 > g2:
+      result = "won"
+   elif g1 < g2:
+      result = "lost"
+   else:
+      result = "drew"
+   return result
+
+db = None
+cur = None
+
+if len(sys.argv) < 3:
+   print(f"Usage: {sys.argv[0]} TeamName Year")
+   exit(1)
+team = sys.argv[1]
+year = sys.argv[2]
+if not year.isnumeric():
+   print(f"Invalid year {year}")
+   exit(1)
+start_year = f"{year}-01-01"
+end_year = f"{year}-12-31"
+
+qT = "select * from Teams where country = %s"
+
+# 
+q6 = """
+select * from q6
+where (team1 = %s or team2 = %s) and date between %s and %s
+order by date
+"""
+
+try:
+   db = psycopg2.connect("dbname=footy")
+   cur = db.cursor()
+   cur.execute(qT, [team])
+   tup = cur.fetchall()
+   # check if the input for team is valid
+   if len(tup) == 0:
+      print(f"No team '{team}'")
+      exit(1)
+   cur.execute(q6, [team, team, start_year, end_year])
+   res = cur.fetchall()
+   if len(res) == 0:
+      print(f"No matches")
+      exit(1)
+   #print(res)
+   for r in res:
+      if r[2] == team:
+         opponent = r[4]
+         teamGoals = r[3]
+         oppoGoals = r[5]
+      else:
+         opponent = r[2]
+         teamGoals = r[5]
+         oppoGoals = r[3]
+      print(f"played {opponent} in {r[0]} on {r[1]} and {getResult(teamGoals, oppoGoals)} {teamGoals}-{oppoGoals}")
+   
+except psycopg2.Error as err:
+	print("DB error: ", err)
+finally:
+   if db:
+      db.close()
+   if cur:
+       cur.close()
+
+# takes in the name of a team and a year
+# if name is valid
+   # print info about matches played by the team in that year including:
+   # opponent ... the other team in the match               (TeamsInMatches)
+   # location ... the city where the match was played       (match.city)
+   # date ... the date on which the match was played        (match.playedOn)
+   # result ... whether T won or lost                       ()
+   # score ... goals by T and goals by opponent             
+       
