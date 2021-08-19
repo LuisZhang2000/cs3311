@@ -1,0 +1,58 @@
+# COMP3311 20T3 Final Exam Q8
+
+(a)
+
+create table Employees (
+    id          integer,
+    name        text not null,
+    position    text not null,
+    primary key (id)
+);
+
+create table Part-times (
+    employee_id     integer primary key,
+    fraction        float check (0.0 < fraction < 1.0),
+    foreign key (employee_id) references Employees(id)
+);
+
+create table Casuals (
+    employee_id     integer primary key,
+    foreign key (employee_id) references Employees(id)
+);
+
+create table Worked (
+    employee_id     integer,
+    hour            date,
+    primary key (employee_id, hour)
+);
+
+create table Hours (
+    date        date,
+    starting    time,
+    ending      time, 
+    primary key (date)
+    constraint timing check (starting < ending)
+);
+
+create table Matches (
+	id          integer,
+	city        varchar(50) not null,
+	playedOn    date not null,
+	primary key (id)
+);
+
+(b)
+
+create table Employees (
+    id          integer,
+    name        text not null,
+    position    text not null,
+    etype       text not null check (etype in ('Part-time','Casual')),
+    fraction    float check (0.0 < fraction and fraction < 1.0),
+    primary key (id),
+    constraint subclasses check
+                ((etype = 'Part-time' and fraction is not null)
+                or
+                (etype = 'Casual' and fraction is null))
+);
+
